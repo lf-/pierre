@@ -10,6 +10,7 @@ import { FileDiff, type FileDiffOptions } from '../../components/FileDiff';
 import { VirtualizedFileDiff } from '../../components/VirtualizedFileDiff';
 import type { GetHoveredLineResult } from '../../managers/InteractionManager';
 import type {
+  DiffDecorationItem,
   DiffLineAnnotation,
   FileDiffMetadata,
   SelectedLineRange,
@@ -25,10 +26,11 @@ import { useStableCallback } from './useStableCallback';
 const useIsometricEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-interface UseFileDiffInstanceProps<LAnnotation> {
+interface UseFileDiffInstanceProps<LAnnotation, LDecoration> {
   fileDiff: FileDiffMetadata;
-  options: FileDiffOptions<LAnnotation> | undefined;
+  options: FileDiffOptions<LAnnotation, LDecoration> | undefined;
   lineAnnotations: DiffLineAnnotation<LAnnotation>[] | undefined;
+  decorations: DiffDecorationItem<LDecoration>[] | undefined;
   selectedLines: SelectedLineRange | null | undefined;
   prerenderedHTML: string | undefined;
   metrics?: VirtualFileMetrics;
@@ -43,10 +45,11 @@ interface UseFileDiffInstanceReturn {
   getHoveredLine(): GetHoveredLineResult<'diff'> | undefined;
 }
 
-export function useFileDiffInstance<LAnnotation>({
+export function useFileDiffInstance<LAnnotation, LDecoration>({
   fileDiff,
   options,
   lineAnnotations,
+  decorations,
   selectedLines,
   prerenderedHTML,
   metrics,
@@ -54,13 +57,18 @@ export function useFileDiffInstance<LAnnotation>({
   hasCustomHeader,
   disableWorkerPool,
   contentEditable,
-}: UseFileDiffInstanceProps<LAnnotation>): UseFileDiffInstanceReturn {
+}: UseFileDiffInstanceProps<
+  LAnnotation,
+  LDecoration
+>): UseFileDiffInstanceReturn {
   const simpleVirtualizer = useVirtualizer();
   const controlledSelection = selectedLines !== undefined;
   const poolManager = useContext(WorkerPoolContext);
   const editor = useEditor<LAnnotation>();
   const instanceRef = useRef<
-    FileDiff<LAnnotation> | VirtualizedFileDiff<LAnnotation> | null
+    | FileDiff<LAnnotation, LDecoration>
+    | VirtualizedFileDiff<LAnnotation, LDecoration>
+    | null
   >(null);
   const ref = useStableCallback((fileContainer: HTMLElement | null) => {
     if (fileContainer != null) {
@@ -102,6 +110,7 @@ export function useFileDiffInstance<LAnnotation>({
         fileDiff,
         fileContainer,
         lineAnnotations,
+        decorations,
         prerenderedHTML,
       });
     } else {
@@ -132,6 +141,7 @@ export function useFileDiffInstance<LAnnotation>({
       forceRender,
       fileDiff,
       lineAnnotations,
+      decorations,
     });
     if (selectedLines !== undefined) {
       instance.setSelectedLines(selectedLines);
@@ -160,24 +170,24 @@ export function useFileDiffInstance<LAnnotation>({
   };
 }
 
-interface MergeFileDiffOptionsProps<LAnnotation> {
+interface MergeFileDiffOptionsProps<LAnnotation, LDecoration> {
   controlledSelection: boolean;
   contentEditable: boolean;
   hasEditor: boolean;
   hasCustomHeader: boolean;
   hasGutterRenderUtility: boolean;
-  options: FileDiffOptions<LAnnotation> | undefined;
+  options: FileDiffOptions<LAnnotation, LDecoration> | undefined;
 }
 
-function mergeFileDiffOptions<LAnnotation>({
+function mergeFileDiffOptions<LAnnotation, LDecoration>({
   options,
   controlledSelection,
   contentEditable,
   hasCustomHeader,
   hasEditor,
   hasGutterRenderUtility,
-}: MergeFileDiffOptionsProps<LAnnotation>):
-  | FileDiffOptions<LAnnotation>
+}: MergeFileDiffOptionsProps<LAnnotation, LDecoration>):
+  | FileDiffOptions<LAnnotation, LDecoration>
   | undefined {
   const needsEditorOptions = contentEditable && hasEditor;
   const needsReactOverrides =

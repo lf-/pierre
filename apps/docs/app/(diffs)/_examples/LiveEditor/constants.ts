@@ -69,7 +69,10 @@ export function debounce<Args extends unknown[]>(
 `,
 };
 
-export const LIVE_EDITOR_OPTIONS: MultiFileDiffProps<undefined>['options'] = {
+export const LIVE_EDITOR_OPTIONS: MultiFileDiffProps<
+  undefined,
+  undefined
+>['options'] = {
   theme: DEFAULT_THEMES,
   themeType: 'dark',
   diffStyle: 'unified',
