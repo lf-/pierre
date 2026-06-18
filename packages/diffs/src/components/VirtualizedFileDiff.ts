@@ -7,6 +7,7 @@ import type {
   FileContents,
   FileDiffMetadata,
   Hunk,
+  HunkExpansionRegion,
   HunkSeparators,
   NumericScrollLineAnchor,
   PendingCodeViewLayoutReset,
@@ -988,6 +989,10 @@ export class VirtualizedFileDiff<
     // CodeView sessions survive recycling with no editor attached; CodeView
     // itself runs the exit recompute when it reaps a session.
     return !this.isAdvancedMode() && super.shouldSelfHealEditSession();
+  }
+
+  public getExpandedHunksForSearch(): Map<number, HunkExpansionRegion> {
+    return this.hunksRenderer.getExpandedHunksMap();
   }
 
   public setVisibility(visible: boolean): void {

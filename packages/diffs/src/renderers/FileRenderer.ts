@@ -25,10 +25,12 @@ import type {
   RenderFileOptions,
   RenderFileResult,
   RenderRange,
+  SearchLineDecoration,
   SupportedLanguages,
   ThemedFileResult,
 } from '../types';
 import { applyLineTextWithNewline } from '../utils/applyLineTextWithNewline';
+import { applySearchDecorationsToLine } from '../utils/applySearchDecorations';
 import { areFileRenderOptionsEqual } from '../utils/areFileRenderOptionsEqual';
 import { areFilesEqual } from '../utils/areFilesEqual';
 import { areRenderRangesEqual } from '../utils/areRenderRangesEqual';
@@ -110,6 +112,7 @@ export class FileRenderer<LAnnotation = undefined> {
   private renderCache: RenderedFileASTCache | undefined;
   private computedLang: SupportedLanguages = 'text';
   private lineAnnotations: AnnotationLineMap<LAnnotation> = {};
+  private searchDecorations = new Map<number, SearchLineDecoration[]>();
   private lineCache: LineCache | undefined;
   private textDocumentCache = new WeakMap<FileContents, DiffsTextDocument>();
 
@@ -144,6 +147,12 @@ export class FileRenderer<LAnnotation = undefined> {
     }
   }
 
+  public setSearchDecorations(
+    decorations: readonly SearchLineDecoration[] | undefined
+  ): void {
+    this.searchDecorations = groupSearchDecorationsByLine(decorations);
+  }
+
   public cleanUp(): void {
     this.recycle();
     this.workerManager = undefined;
@@ -161,6 +170,7 @@ export class FileRenderer<LAnnotation = undefined> {
     // a result rebuilt from the file's own contents, which processFileResult
     // treats as a missing-line error.
     this.textDocumentCache = new WeakMap();
+    this.setSearchDecorations(undefined);
   }
 
   // An edit session patches the render caches in place but never rewrites
@@ -658,7 +668,12 @@ export class FileRenderer<LAnnotation = undefined> {
       gutter.children.push(
         createGutterItem('context', lineNumber, `${lineIndex}`)
       );
-      contentArray.push(line);
+      contentArray.push(
+        applySearchDecorationsToLine(
+          line,
+          this.searchDecorations.get(lineIndex)
+        )
+      );
       rowCount++;
 
       // Check annotations using ACTUAL line number from file
@@ -828,6 +843,22 @@ export class FileRenderer<LAnnotation = undefined> {
       totalLines,
     });
   }
+}
+
+function groupSearchDecorationsByLine(
+  decorations: readonly SearchLineDecoration[] | undefined
+): Map<number, SearchLineDecoration[]> {
+  const grouped = new Map<number, SearchLineDecoration[]>();
+  if (decorations == null) {
+    return grouped;
+  }
+
+  for (const decoration of decorations) {
+    const lineDecorations = grouped.get(decoration.lineIndex) ?? [];
+    lineDecorations.push(decoration);
+    grouped.set(decoration.lineIndex, lineDecorations);
+  }
+  return grouped;
 }
 
 function isFileMassive(lineCount: number, tokenizeMaxLength: number): boolean {
