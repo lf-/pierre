@@ -2,6 +2,7 @@ import {
   dequeueRender,
   queueRender,
 } from '../managers/UniversalRenderingManager';
+import { buildSearchReplacementText, type MatchRange } from '../search';
 import type {
   DiffLineAnnotation,
   DiffsEditableComponent,
@@ -50,7 +51,7 @@ import {
   type PopoverPlacementBounds,
 } from './popover';
 import {
-  type MatchRange,
+  // type MatchRange,
   type SearchPanelMode,
   SearchPanelWidget,
 } from './searchPanel';
@@ -773,7 +774,7 @@ export class Editor<LAnnotation> implements DiffsEditor<LAnnotation> {
     const tokenizer = this.#tokenizer;
     if (tokenizer !== undefined) {
       tokenizer.pauseBackgroundTokenize();
-      requestAnimationFrame(() => {
+      queueRender(() => {
         tokenizer.resumeBackgroundTokenize();
       });
     }
@@ -887,7 +888,7 @@ export class Editor<LAnnotation> implements DiffsEditor<LAnnotation> {
       this.#tokenizer = undefined;
       this.#resetState();
       this.#selections = this.#initSelections;
-      requestAnimationFrame(() => {
+      queueRender(() => {
         this.#options.onAttach?.(this, this.#fileInstance!);
       });
       if (this.#textDocument !== undefined && this.#options.__debug === true) {
@@ -3151,11 +3152,11 @@ export class Editor<LAnnotation> implements DiffsEditor<LAnnotation> {
       });
       // call focus in a request animation frame to prevent conflict with
       // the `setBaseAndExtent` method
-      requestAnimationFrame(() => {
+      queueRender(() => {
         this.#contentElement?.focus({ preventScroll });
         // another request animation frame since the `focus` call
         // may trigger a selectionchange event, which should be ignored
-        requestAnimationFrame(() => {
+        queueRender(() => {
           this.#shouldIgnoreSelectionChange = false;
         });
       });
@@ -4296,36 +4297,70 @@ export class Editor<LAnnotation> implements DiffsEditor<LAnnotation> {
       this.#retainSearchPanelFocus = retainFocus;
     };
 
+    const buildReplacementEdit = (
+      searchParams: Parameters<typeof textDocument.search>[0],
+      matchStart: number,
+      matchEnd: number
+    ): ResolvedTextEdit => ({
+      start: matchStart,
+      end: matchEnd,
+      text: buildSearchReplacementText(
+        (offset) => textDocument.positionAt(offset),
+        (position) => textDocument.offsetAt(position),
+        (line) => textDocument.getLineText(line),
+        searchParams,
+        matchStart,
+        matchEnd
+      ),
+    });
+
+    const applyReplace = (edits: ResolvedTextEdit[]) => {
+      if (edits.length === 0) {
+        return;
+      }
+      const change = textDocument.applyEdits(
+        edits.map((edit) => ({
+          range: {
+            start: textDocument.positionAt(edit.start),
+            end: textDocument.positionAt(edit.end),
+          },
+          newText: edit.text,
+        })),
+        true,
+        this.#selections
+      );
+      if (change !== undefined) {
+        this.#applyChange(
+          change,
+          undefined,
+          this.#applyChangeToLineAnnotations(change),
+          { skipSearchRefresh: true }
+        );
+      }
+    };
+
     const searchPanel = new SearchPanelWidget({
-      textDocument,
       containerElement: preElement,
       defaultQuery,
       mode,
       initialMatch,
+      search: (searchParams) => textDocument.search(searchParams),
+      isSameMatch: ([aStart, aEnd], [bStart, bEnd]) =>
+        aStart === bStart && aEnd === bEnd,
       scrollToMatch,
-      applyReplace: (edits: ResolvedTextEdit[]) => {
-        if (edits.length === 0) {
-          return;
-        }
-        const change = textDocument.applyEdits(
-          edits.map((edit) => ({
-            range: {
-              start: textDocument.positionAt(edit.start),
-              end: textDocument.positionAt(edit.end),
-            },
-            newText: edit.text,
-          })),
-          true,
-          this.#selections
-        );
-        if (change !== undefined) {
-          this.#applyChange(
-            change,
-            undefined,
-            this.#applyChangeToLineAnnotations(change),
-            { skipSearchRefresh: true }
+      replace: {
+        replaceMatch: ([start, end], searchParams): MatchRange => {
+          const edit = buildReplacementEdit(searchParams, start, end);
+          applyReplace([edit]);
+          return [start + edit.text.length, start + edit.text.length];
+        },
+        replaceAll: (matches, searchParams) => {
+          applyReplace(
+            matches.map(([start, end]) =>
+              buildReplacementEdit(searchParams, start, end)
+            )
           );
-        }
+        },
       },
       onUpdate: (
         allMatches: MatchRange[],
