@@ -60,6 +60,7 @@ interface Window {
   __lineSelectReady?: boolean;
   __annotationsReady?: boolean;
   __themeReady?: boolean;
+  __foldingReady?: boolean;
   __selectionActionReady?: boolean;
   __selectionActionEdgesReady?: boolean;
 
@@ -72,6 +73,7 @@ interface Window {
 
   // Editor handle exposed by the editable fixtures.
   __editor?: E2EEditor;
+  __setFoldingTheme?: () => void;
 
   // edit-collapsed.html helpers: rendered new-file line numbers in the
   // editable column, and the primary caret's zero-based line.

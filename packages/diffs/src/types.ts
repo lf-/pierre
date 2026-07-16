@@ -1021,6 +1021,11 @@ export interface DiffsEditableComponent<
   /** @internal Return the current file when this component renders one. */
   __getCurrentFile?: () => FileContents | undefined;
   /**
+   * @internal Hide inclusive zero-based document-line ranges while an editor
+   * fold is active. FileDiff intentionally leaves this unimplemented.
+   */
+  __setFoldRanges?: (ranges: LineRange[]) => void;
+  /**
    * Return the position and height of a one-based line relative to this component.
    * The host uses it to scroll to virtualized lines before their DOM nodes exist.
    * A zero height means the line is not currently renderable.
@@ -1188,6 +1193,11 @@ export interface EditorSelection extends Range {
 
 export interface EditorState {
   selections?: EditorSelection[];
+  /**
+   * Active indentation folds. Lines are zero-based; `endLine` is the last
+   * collapsed body line. A standalone closing delimiter remains visible.
+   */
+  foldRanges?: LineRange[];
   view?: {
     scrollLeft: number;
     scrollTop: number;
@@ -1198,6 +1208,11 @@ export interface DiffsTextDocument {
   readonly lineCount: number;
   getLineText: (lineNumber: number, includeLineBreak?: boolean) => string;
   getText: () => string;
+}
+
+export interface LineRange {
+  readonly startLine: number;
+  readonly endLine: number;
 }
 
 /**
