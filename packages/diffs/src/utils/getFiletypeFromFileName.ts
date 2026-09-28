@@ -254,6 +254,7 @@ export const EXTENSION_TO_FILE_FORMAT: ExtensionFormatMap = {
   bazel: 'python',
   bxl: 'python',
   bzl: 'python',
+  bzlmod: 'python',
   star: 'python',
   sky: 'python',
   qml: 'qml',
