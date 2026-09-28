@@ -248,7 +248,6 @@ export const EXTENSION_TO_FILE_FORMAT: ExtensionFormatMap = {
   // it is.
   BUCK: 'python',
   BUILD: 'python',
-  MODULE: 'python',
   PACKAGE: 'python',
   WORKSPACE: 'python',
   Tiltfile: 'python',
