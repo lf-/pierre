@@ -251,6 +251,7 @@ export const EXTENSION_TO_FILE_FORMAT: ExtensionFormatMap = {
   MODULE: 'python',
   PACKAGE: 'python',
   WORKSPACE: 'python',
+  Tiltfile: 'python',
   bazel: 'python',
   bxl: 'python',
   bzl: 'python',
